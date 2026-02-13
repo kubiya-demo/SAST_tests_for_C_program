@@ -1,10 +1,12 @@
 /*
-    This program constructs a slightly more complicated memory leak scenario.
-    The program allocates memory for an array of structs, each of which contains
-    an inner array. 
-    The program then initializes the inner arrays with values.
-    The program then forgets to free the inner arrays before freeing the outer
-    array, causing a memory leak.
+    FIXED: Properly free all allocated memory including nested structures.
+    
+    Previously: The program freed the outer structs but forgot to free
+    the inner arrays, causing memory leaks.
+    
+    Now: All dynamically allocated memory is properly freed in reverse order.
+    
+    CWE-401: Missing Release of Memory after Effective Lifetime
 */
 
 #include <stdio.h>
@@ -43,9 +45,11 @@ int main() {
         if (outerArray[i]->innerArray == NULL) {
             perror("Failed to allocate memory for innerArray");
             // Free already allocated memory before exiting
-            for (int j = 0; j <= i; j++) {
+            for (int j = 0; j < i; j++) {
+                free(outerArray[j]->innerArray);
                 free(outerArray[j]);
             }
+            free(outerArray[i]);  // Free the current struct too
             free(outerArray);
             return 1;
         }
@@ -57,13 +61,19 @@ int main() {
     }
 
     // ... Use outerArray and its inner arrays ...
+    printf("All memory allocated and initialized successfully\n");
 
-    // Free the meta-array but forget to free the inner arrays
+    // FIXED: Free all memory in reverse order of allocation
     for (int i = 0; i < numStructs; ++i) {
-        // Memory leak: innerArray not freed
-        free(outerArray[i]); // Only freeing the struct, not its innerArray
+        // First free the inner array
+        free(outerArray[i]->innerArray);
+        // Then free the struct itself
+        free(outerArray[i]);
     }
+    // Finally free the outer array
     free(outerArray);
+
+    printf("All memory properly freed - no memory leaks\n");
 
     return 0;
 }
