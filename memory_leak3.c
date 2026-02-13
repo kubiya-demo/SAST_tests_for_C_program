@@ -1,5 +1,10 @@
 /*
-    This program leaks memory but only in one of the if branch.
+    FIXED: Ensure memory is freed in all code paths.
+    
+    Previously: The program leaked memory when file opening failed (return -1 path).
+    Now: All error paths properly clean up allocated resources.
+    
+    CWE-401: Missing Release of Memory after Effective Lifetime
 */
 
 #include <stdio.h>
@@ -16,7 +21,9 @@ int main() {
     // Open a common file
     FILE *file = fopen("/etc/passwd", "r");
     if (file == NULL) {
-        return -1; // Return -1 and leak memory if file opening fails
+        // FIXED: Free buffer before returning on error
+        free(buffer);
+        return -1; // Return -1 if file opening fails (no longer leaks memory)
     }
 
     // Read the first character
@@ -29,6 +36,8 @@ int main() {
     // Close file and free memory
     fclose(file);
     free(buffer);
+
+    printf("All resources properly cleaned up\n");
 
     return 0;
 }
